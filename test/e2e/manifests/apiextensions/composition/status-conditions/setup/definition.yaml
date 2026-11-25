@@ -1,0 +1,28 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: statusgates.status.e2e.crossplane.io
+spec:
+  scope: Namespaced
+  group: status.e2e.crossplane.io
+  names:
+    kind: StatusGate
+    plural: statusgates
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              note:
+                type: string
+          status:
+            type: object
+            properties:
+              phase:
+                type: string

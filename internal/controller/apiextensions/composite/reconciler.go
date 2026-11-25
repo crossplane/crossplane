@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -228,6 +227,11 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	// Composed resource details.
 	Composed []ComposedResource
+
+	// DesiredStatus contains the status fields set by the composition. An
+	// empty map is an apply intent that clears previously owned fields.
+	// A nil map means the composer did not produce a status apply intent.
+	DesiredStatus map[string]any
 
 	// XR connection details.
 	ConnectionDetails managed.ConnectionDetails
@@ -651,7 +655,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Record the reconcile-requested-at annotation token in status so
 	// users can confirm the request was processed.
-	if token, ok := meta.GetReconcileRequest(xr); ok {
+	token, requested := meta.GetReconcileRequest(xr)
+	if requested {
 		if xr.GetLastHandledReconcileAt() != token {
 			log.Debug("Processing reconcile request", "token", token)
 			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
@@ -667,6 +672,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// it around, so there's nothing left for us to do.
 		if !slices.Contains(xr.GetFinalizers(), Finalizer) {
 			log.Debug("Composite resource is waiting for other finalizers to be removed")
+			if xr.GetCondition(xpv2.TypeReady).Reason == xpv2.ReasonDeleting && xr.GetCondition(xpv2.TypeSynced).Status == corev1.ConditionFalse {
+				// The circuit condition setter converted the list to typed
+				// conditions. Restore the raw read before changing only Synced.
+				xr.Object[statusField] = statusBefore
+				return reconcile.Result{}, r.writeDeletionCompletionStatus(updateCtx, xr)
+			}
 			return reconcile.Result{}, nil
 		}
 
@@ -674,12 +685,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if slices.Contains(xr.GetFinalizers(), metav1.FinalizerOrphanDependents) {
 			log.Debug("Composite resource is being deleted with orphan propagation, leaving its composed resources alone")
 
-			return r.finishDelete(ctx, updateCtx, log, status, xr)
+			return r.finishDelete(ctx, updateCtx, log, status, xr, CompositionResult{}, nil)
 		}
 
 		// Without deletion policies, defer to Kubernetes garbage collection.
 		if !r.features.Enabled(features.EnableAlphaFunctionControlledDeletion) {
-			return r.finishDelete(ctx, updateCtx, log, status, xr)
+			return r.finishDelete(ctx, updateCtx, log, status, xr, CompositionResult{}, nil)
 		}
 
 		// Use the policy the XR recorded. Its Composition may have changed or
@@ -694,7 +705,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				r.record.Event(xr, event.Warning(reasonDelete, errors.New(errForegroundDeletion)))
 			}
 
-			return r.finishDelete(ctx, updateCtx, log, status, xr)
+			return r.finishDelete(ctx, updateCtx, log, status, xr, CompositionResult{}, nil)
 		}
 
 		switch policy {
@@ -711,7 +722,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Running the function pipeline to delete composed resources")
 			status.MarkConditions(xpv2.Deleting().WithMessage(waitingForPipelineMsg))
 		case v1.CompositionDeletionPolicyBackground:
-			return r.finishDelete(ctx, updateCtx, log, status, xr)
+			return r.finishDelete(ctx, updateCtx, log, status, xr, CompositionResult{}, nil)
 		}
 	} else if err := r.composite.AddFinalizer(ctx, xr); err != nil {
 		if kerrors.IsConflict(err) {
@@ -809,6 +820,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				return reconcile.Result{}, err
 			}
+			statusBefore, _, _ = kunstructured.NestedFieldCopy(xr.Object, statusField)
 
 			if deleting {
 				return reconcile.Result{Requeue: true}, nil
@@ -897,13 +909,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	if res.DesiredStatus != nil {
+		// Restore the circuit condition and reconcile token after any status
+		// reload during composition. Stamp the condition with the current generation.
+		status.MarkConditions(condition)
+		if requested {
+			xr.SetLastHandledReconcileAt(token)
+		}
+	}
+
 	// Watch every kind this controller's XRs depend on - the resources they
 	// compose and the resources their functions require. The tracker was
 	// updated with this XR's dependencies as it was composed above.
 	if err := r.startWatches(ctx, log); err != nil {
 		r.record.Event(xr, event.Warning(reasonWatch, err))
+		r.handleCommonCompositionResult(updateCtx, res, xr)
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 
 		return reconcile.Result{}, err
 	}
@@ -911,8 +933,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// The pipeline is done deleting: it desires nothing, and nothing exists.
 	if deleting && res.Existing == 0 && len(res.Composed) == 0 {
 		log.Debug("Functions deleted all composed resources")
+		r.handleCommonCompositionResult(updateCtx, res, xr)
 
-		return r.finishDelete(ctx, updateCtx, log, status, xr)
+		return r.finishDelete(ctx, updateCtx, log, status, xr, res, statusBefore)
 	}
 
 	// There's no point publishing connection details while deleting.
@@ -927,8 +950,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			err = errors.Wrap(err, errPublish)
 			r.record.Event(xr, event.Warning(reasonPublish, err))
+			r.handleCommonCompositionResult(updateCtx, res, xr)
 			status.MarkConditions(xpv2.ReconcileError(err))
-			_ = r.client.Status().Update(updateCtx, xr)
+			_ = r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 
 			return reconcile.Result{}, err
 		}
@@ -1019,10 +1043,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
-	if !cmp.Equal(statusBefore, xr.Object["status"]) {
-		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
-	}
-	return result, nil
+	return result, r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 }
 
 // deleteInForeground deletes the XR's composed resources, and removes its
@@ -1043,7 +1064,7 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 
 	if len(observed) == 0 {
 		log.Debug("Deleted all composed resources")
-		return r.finishDelete(ctx, updateCtx, log, status, xr)
+		return r.finishDelete(ctx, updateCtx, log, status, xr, CompositionResult{}, nil)
 	}
 
 	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))))
@@ -1108,8 +1129,22 @@ func (r *Reconciler) startWatches(ctx context.Context, log logging.Logger) error
 }
 
 // finishDelete removes the XR's finalizer.
-func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Logger, status conditions.ConditionSet, xr *composite.Unstructured) (reconcile.Result, error) {
+func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Logger, status conditions.ConditionSet, xr *composite.Unstructured, res CompositionResult, statusBefore any) (reconcile.Result, error) {
 	status.MarkConditions(xpv2.Deleting())
+	pendingStatus, _, _ := kunstructured.NestedFieldCopy(xr.Object, statusField)
+	deferSuccess := xr.GetCondition(xpv2.TypeSynced).Status == corev1.ConditionFalse
+	if res.DesiredStatus != nil {
+		// A completed pipeline must publish valid final status before its
+		// finalizer is removed, so failures can be reported and retried.
+		// Keep an existing error until finalizer removal succeeds.
+		if !deferSuccess {
+			status.MarkConditions(xpv2.ReconcileSuccess())
+		}
+		if err := r.writeCompositionStatus(updateCtx, xr, res, statusBefore); err != nil {
+			return reconcile.Result{}, err
+		}
+		statusBefore, _, _ = kunstructured.NestedFieldCopy(xr.Object, statusField)
+	}
 
 	if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 		if kerrors.IsConflict(err) {
@@ -1119,9 +1154,14 @@ func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Lo
 		err = errors.Wrap(err, errRemoveFinalizer)
 		r.record.Event(xr, event.Warning(reasonDelete, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 
 		return reconcile.Result{}, err
+	}
+
+	// Non-pipeline deletion has not published its pending status yet.
+	if res.DesiredStatus == nil {
+		xr.Object["status"] = pendingStatus
 	}
 
 	// Stop tracking the XR's dependencies. Any watch only it needed will be
@@ -1129,9 +1169,24 @@ func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Lo
 	r.tracker.Forget(client.ObjectKeyFromObject(xr))
 
 	log.Debug("Successfully deleted composite resource")
+	if res.DesiredStatus != nil && (!deferSuccess || len(xr.GetFinalizers()) == 0) {
+		return reconcile.Result{}, nil
+	}
+	if res.DesiredStatus != nil {
+		return reconcile.Result{}, r.writeDeletionCompletionStatus(updateCtx, xr)
+	}
 	status.MarkConditions(xpv2.ReconcileSuccess())
+	return reconcile.Result{}, r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
+}
 
-	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+// writeDeletionCompletionStatus retries only the completion condition after
+// finalizer removal. A retained XR may have received unrelated status writes.
+func (r *Reconciler) writeDeletionCompletionStatus(ctx context.Context, xr *composite.Unstructured) error {
+	before := xr.DeepCopy()
+	if err := mergeStatusConditions(xr, xpv2.ReconcileSuccess().WithObservedGeneration(xr.GetGeneration())); err != nil {
+		return errors.Wrap(err, errUpdateStatus)
+	}
+	return errors.Wrap(resource.IgnoreNotFound(r.client.Status().Patch(ctx, xr, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))), errUpdateStatus)
 }
 
 type compositionResultMeta struct {

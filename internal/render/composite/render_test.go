@@ -106,10 +106,15 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XBucket",
-						"metadata":   map[string]any{"name": "my-bucket"},
+						"metadata": map[string]any{
+							"name":   "my-bucket",
+							"uid":    "f70ef0ce-2b73-5b7b-a497-0ba62f7c6f04",
+							"labels": map[string]any{"crossplane.io/composite": "my-bucket"},
+						},
 						"spec": map[string]any{
 							"crossplane": map[string]any{
-								"resourceRefs": []any{},
+								"compositionRef": map[string]any{"name": "bucket-composition"},
+								"resourceRefs":   []any{},
 							},
 						},
 						"status": map[string]any{
@@ -169,10 +174,16 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XModernResource",
-						"metadata":   map[string]any{"name": "my-xr", "namespace": "default"},
+						"metadata": map[string]any{
+							"name":      "my-xr",
+							"namespace": "default",
+							"uid":       "6ca6696e-4135-5475-ad53-40843d379b20",
+							"labels":    map[string]any{"crossplane.io/composite": "my-xr"},
+						},
 						"spec": map[string]any{
 							"crossplane": map[string]any{
-								"resourceRefs": []any{},
+								"compositionRef": map[string]any{"name": "modern-composition"},
+								"resourceRefs":   []any{},
 							},
 						},
 						"status": map[string]any{
@@ -232,9 +243,14 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"name":   "my-xr",
+							"uid":    "be425815-11b0-5dea-99a2-7cda7e71e973",
+							"labels": map[string]any{"crossplane.io/composite": "my-xr"},
+						},
 						"spec": map[string]any{
-							"resourceRefs": []any{},
+							"compositionRef": map[string]any{"name": "legacy-composition"},
+							"resourceRefs":   []any{},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -294,9 +310,14 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"name":   "my-xr",
+							"uid":    "be425815-11b0-5dea-99a2-7cda7e71e973",
+							"labels": map[string]any{"crossplane.io/composite": "my-xr"},
+						},
 						"spec": map[string]any{
-							"resourceRefs": []any{},
+							"compositionRef": map[string]any{"name": "legacy-composition"},
+							"resourceRefs":   []any{},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -377,9 +398,14 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"name":   "my-xr",
+							"uid":    "xr-uid",
+							"labels": map[string]any{"crossplane.io/composite": "my-xr"},
+						},
 						"spec": map[string]any{
-							"resourceRefs": []any{},
+							"compositionRef": map[string]any{"name": "legacy-composition"},
+							"resourceRefs":   []any{},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -450,10 +476,15 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XBucket",
-						"metadata":   map[string]any{"name": "my-bucket"},
+						"metadata": map[string]any{
+							"name":   "my-bucket",
+							"uid":    "f70ef0ce-2b73-5b7b-a497-0ba62f7c6f04",
+							"labels": map[string]any{"crossplane.io/composite": "my-bucket"},
+						},
 						"spec": map[string]any{
 							"crossplane": map[string]any{
-								"resourceRefs": []any{},
+								"compositionRef": map[string]any{"name": "bucket-composition"},
+								"resourceRefs":   []any{},
 							},
 						},
 						"status": map[string]any{
@@ -1227,12 +1258,14 @@ func TestRenderDeletion(t *testing.T) {
 						"metadata": map[string]any{
 							"name":              "my-xr",
 							"namespace":         "default",
+							"uid":               "xr-uid",
+							"labels":            map[string]any{"crossplane.io/composite": "my-xr"},
 							"deletionTimestamp": "2026-11-02T00:00:00Z",
 							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
 						},
 						"spec": map[string]any{
 							// Crossplane keeps referencing second until it's gone.
-							"crossplane": map[string]any{"resourceRefs": []any{ref("first"), ref("second")}},
+							"crossplane": map[string]any{"compositionRef": map[string]any{"name": "things"}, "resourceRefs": []any{ref("first"), ref("second")}},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -1297,11 +1330,13 @@ func TestRenderDeletion(t *testing.T) {
 						"metadata": map[string]any{
 							"name":              "my-xr",
 							"namespace":         "default",
+							"uid":               "xr-uid",
+							"labels":            map[string]any{"crossplane.io/composite": "my-xr"},
 							"deletionTimestamp": "2026-11-02T00:00:00Z",
 							"finalizers":        []any{"example.org/other"},
 						},
 						"spec": map[string]any{
-							"crossplane": map[string]any{"resourceRefs": []any{}},
+							"crossplane": map[string]any{"compositionRef": map[string]any{"name": "things"}, "resourceRefs": []any{}},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -1355,12 +1390,14 @@ func TestRenderDeletion(t *testing.T) {
 						"metadata": map[string]any{
 							"name":              "my-xr",
 							"namespace":         "default",
+							"uid":               "xr-uid",
+							"labels":            map[string]any{"crossplane.io/composite": "my-xr"},
 							"deletionTimestamp": "2026-11-02T00:00:00Z",
 							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
 						},
 						"spec": map[string]any{
 							// Crossplane keeps referencing first until it's gone.
-							"crossplane": map[string]any{"resourceRefs": []any{ref("first")}},
+							"crossplane": map[string]any{"compositionRef": map[string]any{"name": "things"}, "resourceRefs": []any{ref("first")}},
 						},
 						"status": map[string]any{
 							"conditions": []any{
@@ -1605,5 +1642,101 @@ func TestPrepareDeletion(t *testing.T) {
 				t.Errorf("\n%s\nprepareDeletion(...): -want observed, +got observed:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func TestRenderExternalCondition(t *testing.T) {
+	condition := map[string]any{
+		"type": "External", "status": "True", "reason": "Verified",
+		"lastTransitionTime": "2026-01-01T00:00:00Z",
+	}
+	in := &renderv1alpha1.CompositeInput{
+		CompositeResource: mustStruct(map[string]any{
+			"apiVersion": "example.org/v1alpha1", "kind": "XBucket",
+			"metadata": map[string]any{"name": "my-bucket"},
+			"status":   map[string]any{"conditions": []any{condition}},
+		}),
+		Composition: mustStruct(map[string]any{
+			"metadata": map[string]any{"name": "bucket-composition"},
+			"spec": map[string]any{
+				"compositeTypeRef": map[string]any{"apiVersion": "example.org/v1alpha1", "kind": "XBucket"},
+				"pipeline":         []any{},
+			},
+		}),
+	}
+	out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conditions, _, _ := kunstructured.NestedSlice(out.GetCompositeResource().AsMap(), "status", "conditions")
+	for _, item := range conditions {
+		if got, ok := item.(map[string]any); ok && got["type"] == "External" {
+			if diff := cmp.Diff(condition, got); diff != "" {
+				t.Errorf("external condition (-want +got):\n%s", diff)
+			}
+			return
+		}
+	}
+	t.Fatal("rendered XR is missing the external condition")
+}
+
+func TestRenderPreservesUserFields(t *testing.T) {
+	addr := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{Desired: &fnv1.State{Composite: &fnv1.Resource{
+			Resource: mustStruct(map[string]any{"status": map[string]any{}}),
+		}}},
+	})
+	// Start with stable conditions so output cannot rely on a status Update
+	// to preserve the input fields.
+	conditions := make([]any, 0, 3)
+	for _, c := range []struct{ typ, reason string }{
+		{"Responsive", "WatchCircuitClosed"},
+		{"Synced", "ReconcileSuccess"},
+		{"Ready", "Available"},
+	} {
+		conditions = append(conditions, map[string]any{
+			"type": c.typ, "reason": c.reason, "status": "True",
+			"lastTransitionTime": "2026-01-01T00:00:00Z",
+		})
+	}
+	in := &renderv1alpha1.CompositeInput{
+		CompositeResource: mustStruct(map[string]any{
+			"apiVersion": "example.org/v1alpha1", "kind": "XBucket",
+			"metadata": map[string]any{
+				"name": "my-bucket", "uid": "xr-uid",
+				"labels":      map[string]any{"app": "example"},
+				"annotations": map[string]any{"example.org/keep": "value"},
+			},
+			"spec": map[string]any{
+				"region":     "us-east-1",
+				"crossplane": map[string]any{"compositionRef": map[string]any{"name": "bucket-composition"}},
+			},
+			"status": map[string]any{"conditions": conditions},
+		}),
+		Functions: []*renderv1alpha1.FunctionInput{{Name: "noop", Address: addr}},
+		Composition: mustStruct(map[string]any{
+			"metadata": map[string]any{"name": "bucket-composition"},
+			"spec": map[string]any{
+				"compositeTypeRef": map[string]any{"apiVersion": "example.org/v1alpha1", "kind": "XBucket"},
+				"pipeline":         []any{map[string]any{"step": "noop", "functionRef": map[string]any{"name": "noop"}}},
+			},
+		}),
+	}
+	out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range [][]string{
+		{"metadata", "uid"},
+		{"metadata", "labels", "app"},
+		{"metadata", "annotations", "example.org/keep"},
+		{"spec", "region"},
+		{"spec", "crossplane", "compositionRef"},
+	} {
+		want, _, _ := kunstructured.NestedFieldNoCopy(in.GetCompositeResource().AsMap(), path...)
+		got, _, _ := kunstructured.NestedFieldNoCopy(out.GetCompositeResource().AsMap(), path...)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("rendered %s (-want +got):\n%s", strings.Join(path, "."), diff)
+		}
 	}
 }

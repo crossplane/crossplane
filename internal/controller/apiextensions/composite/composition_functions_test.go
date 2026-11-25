@@ -115,10 +115,11 @@ func TestFunctionCompose(t *testing.T) {
 	errFmtFetchBootstrapRequirements := "cannot fetch bootstrap required resources for requirement %q"
 
 	type params struct {
-		c  client.Client
-		uc client.Client
-		r  FunctionRunner
-		o  []FunctionComposerOption
+		c     client.Client
+		uc    client.Client
+		r     FunctionRunner
+		o     []FunctionComposerOption
+		check func(*testing.T)
 	}
 
 	type args struct {
@@ -263,10 +264,9 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "When an optional credential's secret does not exist, the pipeline should continue without error and not include that credential in the function request.",
 			params: params{
 				c: &test.MockClient{
-					MockGet:         mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "optional-secret"))),
-					MockList:        mockListFunctionRevisions(),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockGet:   mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "optional-secret"))),
+					MockList:  mockListFunctionRevisions(),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -345,9 +345,8 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					})),
-					MockList:        mockListFunctionRevisions(),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList:  mockListFunctionRevisions(),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -633,9 +632,8 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					})),
-					MockList:        mockListFunctionRevisions(),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList:  mockListFunctionRevisions(),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -711,9 +709,8 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
-					MockList:        mockListFunctionRevisions(),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList:  mockListFunctionRevisions(),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -979,9 +976,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
 				c: &test.MockClient{
-					MockList:        mockListFunctionRevisions(),
-					MockGet:         mockGetFunction(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
@@ -1201,7 +1197,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
 				},
 				uc: &test.MockClient{
@@ -1265,7 +1260,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
 				},
 				uc: &test.MockClient{
@@ -1330,7 +1324,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
 				},
 				uc: &test.MockClient{
@@ -1396,7 +1389,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
 				},
 				uc: &test.MockClient{
@@ -1473,7 +1465,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
 				},
 				uc: &test.MockClient{
@@ -1540,7 +1531,6 @@ func TestFunctionCompose(t *testing.T) {
 					MockList:               mockListFunctionRevisions(),
 					MockGet:                mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "ClusterComposed"}, ""))), // all names are available
 					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(errBoom, false),
 				},
 				uc: &test.MockClient{
@@ -1649,14 +1639,13 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrap(errBoom, errApplyXRRefs),
 			},
 		},
-		"ApplyXRStatusError": {
-			reason: "We should return any error we encounter when applying the composite resource status",
+		"ReturnDesiredXRStatus": {
+			reason: "The composer should return function-authored status without writing it",
 			params: params{
 				c: &test.MockClient{
-					MockList:        mockListFunctionRevisions(),
-					MockGet:         mockGetFunction(nil),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
+					MockList:  mockListFunctionRevisions(),
+					MockGet:   mockGetFunction(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -1702,7 +1691,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplyXRStatus),
+				res: CompositionResult{DesiredStatus: map[string]any{"widgets": float64(42)}},
 			},
 		},
 		"ApplyComposedResourceError": {
@@ -1721,7 +1710,6 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -1844,8 +1832,7 @@ func TestFunctionCompose(t *testing.T) {
 						// names.NameGenerator implementation. Mock it out.
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					})),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -1983,6 +1970,7 @@ func TestFunctionCompose(t *testing.T) {
 			},
 			want: want{
 				res: CompositionResult{
+					DesiredStatus: map[string]any{"widgets": float64(42)},
 					Composed: []ComposedResource{
 						{ResourceName: "desired-resource-a", Synced: true},
 						{ResourceName: "observed-resource-a", Ready: true, Synced: true},
@@ -2082,7 +2070,6 @@ func TestFunctionCompose(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// A function that has stopped desiring the composed resource
@@ -2152,7 +2139,6 @@ func TestFunctionCompose(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// A function that still desires the orphaned resource.
@@ -2232,7 +2218,6 @@ func TestFunctionCompose(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// A function that still desires the orphaned resource, and a
@@ -2321,7 +2306,6 @@ func TestFunctionCompose(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// A function that has stopped desiring the composed resource
@@ -2372,117 +2356,79 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 		},
-		"PreserveRecordedDeletionPolicy": {
-			reason: "We should keep the deletion policy the XR recorded when we apply its status, because functions don't return it and the apply would delete it.",
-			params: params{
-				c: &test.MockClient{
-					MockList:  mockListFunctionRevisions(),
-					MockGet:   mockGetFunction(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
-						xr, ok := obj.(*composite.Unstructured)
-						if !ok {
-							return nil
-						}
-						if got := xr.GetDeletionPolicy(); got != v1.CompositionDeletionPolicyPipeline {
-							return errors.Errorf("want deletion policy %q in the status patch, got %q", v1.CompositionDeletionPolicyPipeline, got)
-						}
-
-						return nil
-					}),
-				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{
-						Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{
-							"apiVersion": "test.crossplane.io/v1",
-							"kind":       "CoolComposite",
-						})},
-					}}, nil
-				}),
-				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
-						return ComposedResourceStates{}, nil
-					})),
-				},
-			},
-			args: args{
-				xr: func() *composite.Unstructured {
-					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "test.crossplane.io",
-						Version: "v1",
-						Kind:    "CoolComposite",
-					}))
-					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
-
-					return xr
-				}(),
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Pipeline: []v1.PipelineStep{{
-								Step:        "run-cool-function",
-								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
-							}},
-						},
-					},
-				},
-			},
-			want: want{
-				res: CompositionResult{
-					Composed: []ComposedResource{},
-				},
-			},
-		},
 		"DeletingPipelineStopsDesiringResources": {
 			reason: "When the XR is being deleted we should garbage collect the composed resources the pipeline no longer desires",
-			params: params{
-				c: &test.MockClient{
-					MockList:        mockListFunctionRevisions(),
-					MockGet:         mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
-				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-					// A function that handles deletion. It saw the XR's deletion
-					// timestamp, and stopped desiring its composed resource.
-					return &fnv1.RunFunctionResponse{
-						Desired: &fnv1.State{},
-					}, nil
-				}),
-				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
-						return ComposedResourceStates{
-							"observed-resource-a": ComposedResourceState{
-								Resource: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}}},
-							},
+			params: func() params {
+				gcCalled := false
+				patchCalled := false
+				return params{
+					check: func(t *testing.T) {
+						t.Helper()
+						if !gcCalled {
+							t.Error("Compose did not garbage collect composed resources")
+						}
+						if !patchCalled {
+							t.Error("Compose did not persist resourceRefs")
+						}
+					},
+					c: &test.MockClient{
+						MockList: mockListFunctionRevisions(),
+						MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+						MockPatch: test.NewMockPatchFn(nil, func(_ client.Object) error {
+							patchCalled = true
+							if !gcCalled {
+								return errors.New("garbage collection should run before persisting resourceRefs")
+							}
+							return nil
+						}),
+					},
+					r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+						timestamp, found, err := unstructured.NestedString(req.GetObserved().GetComposite().GetResource().AsMap(), "metadata", "deletionTimestamp")
+						if err != nil || !found || timestamp != "2026-01-01T00:00:00Z" {
+							return nil, errors.New("function request should contain the XR deletion timestamp")
+						}
+						return &fnv1.RunFunctionResponse{
+							Desired: &fnv1.State{},
 						}, nil
-					})),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, desired ComposedResourceStates) error {
-						if _, ok := observed["observed-resource-a"]; !ok {
-							return errors.New("observed-resource-a should be observed")
-						}
-						if len(desired) != 0 {
-							return errors.New("nothing should be desired")
-						}
-						return nil
-					})),
-				},
-			},
+					}),
+					o: []FunctionComposerOption{
+						WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+							return nil, nil
+						})),
+						WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+							return ComposedResourceStates{
+								"observed-resource-a": ComposedResourceState{
+									Resource: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}}},
+								},
+							}, nil
+						})),
+						WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, desired ComposedResourceStates) error {
+							gcCalled = true
+							if _, ok := observed["observed-resource-a"]; !ok {
+								return errors.New("observed-resource-a should be observed")
+							}
+							if len(desired) != 0 {
+								return errors.New("nothing should be desired")
+							}
+							return nil
+						})),
+					},
+				}
+			}(),
 			args: args{
 				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
 					Group:   "test.crossplane.io",
 					Version: "v1",
 					Kind:    "CoolComposite",
-				})),
+				}), func(xr *composite.Unstructured) {
+					deleted := metav1.NewTime(time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC))
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+				}),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
+							DeletionPolicy: v1.CompositionDeletionPolicyPipeline,
 							Pipeline: []v1.PipelineStep{{
 								Step:        "run-cool-function",
 								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
@@ -2517,7 +2463,6 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "")),
@@ -2607,6 +2552,9 @@ func TestFunctionCompose(t *testing.T) {
 			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
 
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
+			if tc.params.check != nil {
+				tc.params.check(t)
+			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
