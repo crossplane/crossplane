@@ -505,7 +505,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
     // Note that we use resource.Ignore to squash any error that indicates the
     // external resource already exists. Create implementations must not return
     // an error if asked to create a resource that already exists. Real managed
-    // resource controllers are advised to avoid unintentially 'adoptign' an
+    // resource controllers are advised to avoid unintentionally 'adoptign' an
     // existing, unrelated external resource, per
     // https://github.com/crossplane/crossplane-runtime/issues/27
     return managed.ExternalCreation{ConnectionDetails: cd}, errors.Wrap(resource.Ignore(database.IsExists, err), "cannot create instance")

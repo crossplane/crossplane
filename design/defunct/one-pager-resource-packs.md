@@ -79,7 +79,7 @@ It is important that the design puts forward:
 ## Proposal
 
 Crossplane has the notion of stacks that can be used as extension to Crossplane's
-abilites, to deploy an application and all other things that you can do with
+abilities, to deploy an application and all other things that you can do with
 Kubernetes controllers since main components of stacks are CRDs and controllers
 watching them.
 

@@ -71,7 +71,7 @@ following list is roughly what we can start with as configurable:
 For the use cases that work with statically defined types like `Composition`, we
 can use lower level abstractions if necessary since they are implemented only
 once. So, we want to optimize our abstraction for the ones that require per-kind
-implementaton: immutable fields, conversion webhooks.
+implementation: immutable fields, conversion webhooks.
 
 ### Immutable Fields
 

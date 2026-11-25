@@ -323,7 +323,7 @@ other supported languages inc javascript, python and .NET.
 [CloudFormation Resource Specification]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-resource-specification.html
 [Google Discovery Documents]: https://developers.google.com/discovery/v1/reference/apis
 [KubeForm]: https://github.com/kubeform/kubeform 
-[Magic Moduels]: https://github.com/GoogleCloudPlatform/magic-modules 
+[Magic Modules]: https://github.com/GoogleCloudPlatform/magic-modules 
 [OpenAPI Directory]: https://github.com/APIs-guru/openapi-directory
 [Pulumi]: https://github.com/pulumi/pulumi 
 [Reference Resolvers]: https://github.com/crossplane/crossplane/blob/main/design/one-pager-cross-resource-referencing.md

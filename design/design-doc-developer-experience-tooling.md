@@ -1100,7 +1100,7 @@ type E2ETestCase struct {
 //
 // +k8s:deepcopy-gen=true
 type E2ETestInputs struct {
-	// Cluster specifies paramters for the ephemeral test cluster.
+	// Cluster specifies parameters for the ephemeral test cluster.
 	//
 	// +kubebuilder:validation:Optional
 	Cluster *ClusterConfig

@@ -513,7 +513,7 @@ chart][helm-engine-example], these steps could be followed:
 2. Create a CRD: `kubectl crossplane stack crd init WordpressInstance
    wordpress.samples.stacks.crossplane.io`
 3. Put the chart's contents into the templates folder.
-4. Create a `stack.yaml` in the root of the repostory, and configure it
+4. Create a `stack.yaml` in the root of the repository, and configure it
    to use the templates for the created CRD.
 5. To set up default values:
     1. Put the contents of the chart's `values.yaml` into the CRD's

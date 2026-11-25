@@ -622,7 +622,7 @@ This deployed controller will be responsible for handling **all of the
 resources** that the Template Stack "owns". It will need a way to identify all
 of the CRDs and templates the Stack defines. Each GVK could be supplied to the
 TSM as arguments, but the templates would still need to be resolved. The
-controller should therefor take a reference to the Stack which contains all of
+controller should therefore take a reference to the Stack which contains all of
 the necessary information for the TSM.
 
 ```yaml
