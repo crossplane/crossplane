@@ -26,6 +26,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,6 +81,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Get the watched resource that triggered this reconcile.
 	watched := &unstructured.Unstructured{}
 	watched.SetGroupVersionKind(r.watchedGVK)
+
+	// deleted tracks whether the watched resource is gone and the synthetic
+	// resource below stands in for it. A synthetic resource carries no
+	// labels, so the label filter must not apply to it.
+	deleted := false
+
 	if err := r.client.Get(ctx, req.NamespacedName, watched); err != nil {
 		if !kerrors.IsNotFound(err) {
 			log.Debug("Cannot get watched resource", "error", err)
@@ -103,6 +110,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// invasive for my taste.
 
 		log.Debug("Watched resource was deleted, using synthetic resource to process deletion event")
+
+		deleted = true
 
 		watched.SetName(req.Name)
 		watched.SetNamespace(req.Namespace)
@@ -134,6 +143,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(wo) {
 		log.Debug("WatchOperation is being deleted")
 		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// Re-apply the WatchOperation's filters. The handler normally filters
+	// before enqueueing, but it cannot when its WatchOperation lookup fails
+	// transiently and it fails open, so the reconciler is the backstop: an
+	// excluded resource must not create an Operation here.
+	if wo.Spec.Watch.Namespace != "" {
+		// For cluster-scoped resources, namespace filtering doesn't apply.
+		if watched.GetNamespace() != "" && watched.GetNamespace() != wo.Spec.Watch.Namespace {
+			log.Debug("Watched resource is outside the watched namespace")
+			return reconcile.Result{Requeue: false}, nil
+		}
+	}
+
+	// A deleted resource is represented by a synthetic object with no
+	// labels, so the label filter cannot apply to it. The handler already
+	// filtered the delete event against the real object's labels.
+	if !deleted && len(wo.Spec.Watch.MatchLabels) > 0 {
+		selector := labels.SelectorFromSet(wo.Spec.Watch.MatchLabels)
+		if !selector.Matches(labels.Set(watched.GetLabels())) {
+			log.Debug("Watched resource does not match the label selector")
+			return reconcile.Result{Requeue: false}, nil
+		}
 	}
 
 	// List existing Operations for this WatchOperation.

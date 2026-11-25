@@ -210,7 +210,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(schema.FromAPIVersionAndKind(wo.Spec.Watch.APIVersion, wo.Spec.Watch.Kind))
 
-	if err := r.engine.StartWatches(ctx, name, engine.WatchFor(u, WatchTypeWatchOperation, NewWatchedResourceHandler(wo))); err != nil {
+	if err := r.engine.StartWatches(ctx, name, engine.WatchFor(u, WatchTypeWatchOperation, NewWatchedResourceHandler(r.client, client.ObjectKeyFromObject(wo)))); err != nil {
 		log.Debug("Cannot start watched resource controller watches", "error", err)
 		err = errors.Wrap(err, "cannot start watched resource controller watches")
 		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
