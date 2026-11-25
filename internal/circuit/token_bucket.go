@@ -179,6 +179,9 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	state.recentSources[state.recentIdx] = es.String()
 	state.recentIdx = (state.recentIdx + 1) % len(state.recentSources)
 
+	// Close the circuit if its cooldown has expired.
+	b.closeIfCooledDown(state, now)
+
 	if state.isOpen {
 		// Update half-open cadence while open.
 		if et == EventHalfOpenAllowed {
@@ -186,20 +189,8 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 		}
 
 		// Circuit is open and cooldown time hasn't expired yet.
-		if now.Sub(state.openedAt) < b.config.cooldownTime {
-			b.metrics.IncEvent(b.controller, string(et))
-			return
-		}
-
-		// Cooldown period has expired. Close the circuit.
-		state.isOpen = false
-		b.metrics.IncClose(b.controller)
-
-		// Clear ring buffer on close
-		for i := range state.recentSources {
-			state.recentSources[i] = ""
-		}
-		state.recentIdx = 0
+		b.metrics.IncEvent(b.controller, string(et))
+		return
 	}
 
 	// If there's a token available, consume it.
@@ -234,7 +225,25 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	b.metrics.IncEvent(b.controller, string(et))
 }
 
+// closeIfCooledDown closes the circuit if it is open and its cooldown has
+// expired. The caller must hold s.mu for writing.
+func (b *TokenBucketBreaker) closeIfCooledDown(s *state, now time.Time) {
+	if !s.isOpen || now.Sub(s.openedAt) < b.config.cooldownTime {
+		return
+	}
+
+	s.isOpen = false
+	b.metrics.IncClose(b.controller)
+
+	// Clear ring buffer on close
+	for i := range s.recentSources {
+		s.recentSources[i] = ""
+	}
+	s.recentIdx = 0
+}
+
 // GetState returns the current circuit breaker state for the target resource.
+// If the circuit is open but its cooldown has expired, GetState closes it.
 func (b *TokenBucketBreaker) GetState(_ context.Context, target types.NamespacedName) State {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -244,8 +253,11 @@ func (b *TokenBucketBreaker) GetState(_ context.Context, target types.Namespaced
 		return State{IsOpen: false}
 	}
 
-	state.mu.RLock()
-	defer state.mu.RUnlock()
+	// Closing an expired circuit changes the state, so this needs the write lock.
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	b.closeIfCooledDown(state, time.Now())
 
 	if !state.isOpen {
 		return State{IsOpen: false}
