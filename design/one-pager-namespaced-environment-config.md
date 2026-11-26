@@ -65,6 +65,12 @@ a namespaced `NamespacedEnvironmentConfig.apiextensions.crossplane.io/v1beta1`
 CRD to Crossplane core. The schema is the same as today's cluster scoped
 resource, a single schemaless `data` object.
 
+The new kind is enabled by default, without a feature flag. The cluster-scoped
+`EnvironmentConfig` is mature, and the namespaced variant mirrors its schema. It
+is only a CRD, with no new controller or code path to gate. It is also purely
+additive, so existing `EnvironmentConfig`s, `Composition`s and XRs are
+unaffected.
+
 As a potential future improvement, introduce both resources in a new API group.
 Following the standard naming convention of prefixing cluster-scoped resources
 with Cluster it would be `ClusterEnvironmentConfig` and `EnvironmentConfig`.
