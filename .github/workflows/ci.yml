@@ -140,6 +140,7 @@ jobs:
           - pkg
           - protection
           - lifecycle
+          - ns-restricted
 
         test-suite:
           - base
