@@ -6,7 +6,7 @@ metadata:
   name: {{ template "crossplane.name" . }}:allowed-provider-permissions
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
