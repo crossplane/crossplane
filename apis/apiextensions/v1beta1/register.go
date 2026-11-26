@@ -49,6 +49,14 @@ var (
 	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
 )
 
+// NamespacedEnvironmentConfig type metadata.
+var (
+	NamespacedEnvironmentConfigKind             = reflect.TypeFor[NamespacedEnvironmentConfig]().Name()
+	NamespacedEnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: NamespacedEnvironmentConfigKind}.String()
+	NamespacedEnvironmentConfigKindAPIVersion   = NamespacedEnvironmentConfigKind + "." + SchemeGroupVersion.String()
+	NamespacedEnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(NamespacedEnvironmentConfigKind)
+)
+
 // Usage type metadata.
 var (
 	UsageKind             = reflect.TypeFor[Usage]().Name()
@@ -61,6 +69,7 @@ var (
 func addKnownTypes(s *runtime.Scheme) error {
 	s.AddKnownTypes(SchemeGroupVersion,
 		&EnvironmentConfig{}, &EnvironmentConfigList{},
+		&NamespacedEnvironmentConfig{}, &NamespacedEnvironmentConfigList{},
 		&Usage{}, &UsageList{},
 	)
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
