@@ -1637,8 +1637,67 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 	)
 }
 
-// TODO(adamwg): Add an equivalent test for the manual revision activation
-// policy.
+// TestActivationPolicyManual tests that under the manual revision activation
+// policy the running revision keeps running until the user activates a new one.
+func TestActivationPolicyManual(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/activation/manual"
+
+	provrev1 := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-manual-activation-provider-nop-e956f0998e8f"}}
+	provrev2 := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-manual-activation-provider-nop-bb2f70dd2d3d"}}
+
+	deployment := func(name string) *appsv1.Deployment {
+		return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	}
+	service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "e2e-manual-activation-provider-nop"}}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that the manual revision activation policy leaves revision activation to the user.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			Assess("InstallProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-1.yaml"),
+				funcs.ResourceCreatedWithin(2*time.Minute, provrev1),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.desiredState", "Inactive"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-1.yaml", pkgv1.Inactive()),
+			)).
+			Assess("ActivateFirstRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "activate-revision-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.3.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service, "spec.selector[pkg.crossplane.io/revision]", provrev1.Name),
+			)).
+			Assess("UpdateProviderKeepsRunningRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-2.yaml"),
+				funcs.ResourceCreatedWithin(2*time.Minute, provrev2),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev2, "spec.desiredState", "Inactive"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-2.yaml", pkgv1.Inactive()),
+				// The old revision should still be active and running.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.desiredState", "Active"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.3.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service, "spec.selector[pkg.crossplane.io/revision]", provrev1.Name),
+				funcs.ResourceHasConditionWithin(2*time.Minute,
+					&apiextensionsv1alpha1.ManagedResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}},
+					apiextensionsv1alpha1.EstablishedManaged(),
+				),
+			)).
+			Assess("ActivateNewRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "activate-revision-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				// Activating the current revision should deactivate the old one.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.desiredState", "Inactive"),
+				funcs.ResourceDeletedWithin(2*time.Minute, deployment(provrev1.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service, "spec.selector[pkg.crossplane.io/revision]", provrev2.Name),
+			)).
+			WithTeardown("Cleanup", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, provrev1),
+				funcs.ResourceDeletedWithin(2*time.Minute, provrev2),
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1alpha1.ManagedResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
 
 // TestCompositionFunctionUpgradeFromDependency tests the upgrade path where a
 // function is first installed as a normal dependency of a Configuration (whose

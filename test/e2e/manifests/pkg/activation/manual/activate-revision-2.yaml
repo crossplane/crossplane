@@ -1,0 +1,7 @@
+# Applied over the revision the package manager created, to activate it.
+apiVersion: pkg.crossplane.io/v1
+kind: ProviderRevision
+metadata:
+  name: e2e-manual-activation-provider-nop-bb2f70dd2d3d
+spec:
+  desiredState: Active
