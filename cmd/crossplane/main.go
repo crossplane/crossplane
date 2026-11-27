@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
 
 	"github.com/crossplane/crossplane/apis/v2"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/beta"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/rbac"
 )
@@ -54,6 +55,7 @@ type cli struct {
 
 	Core     core.Command `cmd:"" default:"withargs"                                     help:"Start core Crossplane controllers."`
 	Rbac     rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Beta     beta.Command `cmd:"" help:"Beta (experimental) commands."`
 	Internal internalCmd  `cmd:"" help:"Internal commands. Not intended for direct use." hidden:""`
 }
 
