@@ -902,6 +902,59 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
+		"SuccessfulDeleteClearsDeletionAttempt": {
+			reason: "We should forget a recorded deletion attempt once the last usage is gone, so a later usage can't replay it.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									o.SetAnnotations(map[string]string{protection.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if _, ok := o.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
+										t.Errorf("expected deletion attempt annotation to be removed")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+								t.Errorf("expected no deletion replay without replayDeletion")
+								return nil
+							},
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"SuccessfulDeleteWithReplayDeletion": {
 			reason: "We should replay deletion after usage is gone and replayDeletion is true.",
 			args: args{
