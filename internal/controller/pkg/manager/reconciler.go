@@ -410,33 +410,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Check to see if revision already exists.
-	for index, rev := range revisions {
-		revisionNum := rev.GetRevision()
-
+	for _, rev := range revisions {
 		// Set max revision to the highest numbered existing revision.
-		if revisionNum > maxRevision {
-			maxRevision = revisionNum
-		}
+		maxRevision = max(maxRevision, rev.GetRevision())
 
-		// Set oldest revision to the lowest numbered revision and
-		// record its index.
-		if revisionNum < oldestRevision {
-			oldestRevision = revisionNum
-			oldestRevisionIndex = index
-		}
 		// If revision name is same as current revision, then revision
 		// already exists.
 		if rev.GetName() == p.GetCurrentRevision() {
 			pr = rev
-			// Finish iterating through all revisions to make sure
-			// all non-current revisions are inactive.
+		}
+	}
+
+	// Under the manual policy only the user activates revisions. Until they
+	// activate the current revision, leave the others running as they are.
+	manual := p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1.ManualActivation
+	deactivate := !manual || pr.GetDesiredState() == v1.PackageRevisionActive
+
+	for index, rev := range revisions {
+		if rev.GetName() == p.GetCurrentRevision() {
 			continue
 		}
 
-		if rev.GetDesiredState() == v1.PackageRevisionActive {
-			// If revision is not the current revision, set to
-			// inactive. This should always be done, regardless of
-			// the package's revision activation policy.
+		if deactivate && rev.GetDesiredState() == v1.PackageRevisionActive {
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 
 			if err := r.kube.Applicator.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
@@ -450,6 +445,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 		}
+
+		// Never garbage collect a revision that may still be running.
+		if rev.GetDesiredState() != v1.PackageRevisionActive && rev.GetRevision() < oldestRevision {
+			oldestRevision = rev.GetRevision()
+			oldestRevisionIndex = index
+		}
 	}
 
 	// The current revision should always be the highest numbered revision.
@@ -458,7 +459,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Check to see if there are revisions eligible for garbage collection.
-	if p.GetRevisionHistoryLimit() != nil &&
+	if oldestRevisionIndex >= 0 &&
+		p.GetRevisionHistoryLimit() != nil &&
 		*p.GetRevisionHistoryLimit() != 0 &&
 		len(revisions) > (int(*p.GetRevisionHistoryLimit())+1) {
 		gcRev := revisions[oldestRevisionIndex]
@@ -499,10 +501,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.setPackageRuntimeManagedFields(p, pr)
 	}
 
-	// If the current revision is not active, and we have an automatic or
-	// undefined activation policy, always activate.
-	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
+	// Activate the current revision unless the user does so. A new revision
+	// under the manual policy starts inactive.
+	switch {
+	case !manual:
 		pr.SetDesiredState(v1.PackageRevisionActive)
+	case pr.GetDesiredState() == "":
+		pr.SetDesiredState(v1.PackageRevisionInactive)
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
@@ -543,7 +548,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		status.MarkConditions(v1.Inactive().WithMessage("Package is inactive"))
+		var active []string
+		for _, rev := range revisions {
+			if rev.GetDesiredState() == v1.PackageRevisionActive {
+				active = append(active, rev.GetName())
+			}
+		}
+
+		msg := "Package is inactive"
+		if len(active) > 0 {
+			msg = "Current revision is inactive; active revisions: " + strings.Join(active, ", ")
+		}
+
+		status.MarkConditions(v1.Inactive().WithMessage(msg))
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a

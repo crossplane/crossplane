@@ -1022,6 +1022,180 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestReconcileActivationPolicy(t *testing.T) {
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
+	current := xpkg.FriendlyID("test", packageRevisionID("1234567890123456789012345678901234567890123456789012345678901234", 0))
+	one := int64(1)
+
+	rev := func(name string, num int64, state v1.PackageRevisionDesiredState) v1.ConfigurationRevision {
+		r := v1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: name}}
+		r.SetRevision(num)
+		r.SetDesiredState(state)
+		r.SetConditions(v1.RevisionHealthy())
+		return r
+	}
+
+	type args struct {
+		policy v1.RevisionActivationPolicy
+		revs   []v1.ConfigurationRevision
+	}
+
+	type want struct {
+		applied   map[string]v1.PackageRevisionDesiredState
+		deleted   []string
+		installed xpv2.Condition
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AutomaticNewRevisionReplacesActiveRevision": {
+			reason: "A new revision should be activated and the old active revision deactivated.",
+			args: args{
+				policy: v1.AutomaticActivation,
+				revs:   []v1.ConfigurationRevision{rev("old", 1, v1.PackageRevisionActive)},
+			},
+			want: want{
+				applied: map[string]v1.PackageRevisionDesiredState{
+					"old":   v1.PackageRevisionInactive,
+					current: v1.PackageRevisionActive,
+				},
+				installed: v1.Active(),
+			},
+		},
+		"ManualNewRevisionKeepsActiveRevision": {
+			reason: "A new revision should be created inactive, leaving the active revision running.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs:   []v1.ConfigurationRevision{rev("old", 1, v1.PackageRevisionActive)},
+			},
+			want: want{
+				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
+				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: old"),
+			},
+		},
+		"ManualActivatedCurrentRevisionDeactivatesOthers": {
+			reason: "Once the user activates the current revision the other revisions should be deactivated.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs: []v1.ConfigurationRevision{
+					rev("old", 1, v1.PackageRevisionActive),
+					rev(current, 2, v1.PackageRevisionActive),
+				},
+			},
+			want: want{
+				applied: map[string]v1.PackageRevisionDesiredState{
+					"old":   v1.PackageRevisionInactive,
+					current: v1.PackageRevisionActive,
+				},
+				installed: v1.Active(),
+			},
+		},
+		"ManualActivatedOldRevisionIsNotReverted": {
+			reason: "A revision the user activated while the current revision is inactive should stay active.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs: []v1.ConfigurationRevision{
+					rev("old", 1, v1.PackageRevisionActive),
+					rev(current, 2, v1.PackageRevisionInactive),
+				},
+			},
+			want: want{
+				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
+				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: old"),
+			},
+		},
+		"ManualActiveRevisionIsNotGarbageCollected": {
+			reason: "Garbage collection should delete the oldest inactive revision, not the active one.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs: []v1.ConfigurationRevision{
+					rev("running", 1, v1.PackageRevisionActive),
+					rev("candidate", 2, v1.PackageRevisionInactive),
+					rev("newer-candidate", 3, v1.PackageRevisionInactive),
+				},
+			},
+			want: want{
+				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
+				deleted:   []string{"candidate"},
+				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: running"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			applied := map[string]v1.PackageRevisionDesiredState{}
+			var deleted []string
+			var installed xpv2.Condition
+
+			r := &Reconciler{
+				newPackage:             func() v1.Package { return &v1.Configuration{} },
+				newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
+				newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+				kube: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							p := o.(*v1.Configuration)
+							p.SetName("test")
+							p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+							p.SetActivationPolicy(&tc.args.policy)
+							p.SetRevisionHistoryLimit(&one)
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+							o.(*v1.ConfigurationRevisionList).Items = tc.args.revs
+							return nil
+						}),
+						MockDelete: func(_ context.Context, o client.Object, _ ...client.DeleteOption) error {
+							deleted = append(deleted, o.GetName())
+							return nil
+						},
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							installed = o.(*v1.Configuration).GetCondition(v1.TypeInstalled)
+							return nil
+						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+						applied[o.GetName()] = o.(v1.PackageRevision).GetDesiredState()
+						return nil
+					}),
+				},
+				pkg: &fake.MockClient{
+					MockGet: fake.NewMockGetFn(&xpkg.Package{
+						Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+						Version:         "v1.0.0",
+						Source:          "xpkg.crossplane.io/test",
+						ResolvedVersion: "v1.0.0",
+						ResolvedSource:  "xpkg.crossplane.io/test",
+					}, nil),
+				},
+				log:        testLog,
+				record:     event.NewNopRecorder(),
+				conditions: conditions.ObservedGenerationPropagationManager{},
+			}
+
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.want.applied, applied); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want applied, +got applied:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.deleted, deleted); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want deleted, +got deleted:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.installed, installed, test.EquateConditions()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want Installed condition, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestReconcileExternalRevisions(t *testing.T) {
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 
