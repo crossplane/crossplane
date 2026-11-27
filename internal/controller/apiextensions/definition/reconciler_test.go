@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
@@ -98,6 +99,7 @@ func (m *MockEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersio
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	errInvalid := kerrors.NewInvalid(schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}, "xcomposites.example.org", nil)
 	now := metav1.Now()
 	owner := types.UID("definitely-a-uuid")
 	ctrlr := true
@@ -144,11 +146,20 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"RenderCustomResourceDefinitionError": {
-			reason: "We should return any error we encounter rendering a CRD.",
+			reason: "We should return any error we encounter rendering a CRD, and report it in the Synced condition.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.Status.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errRenderCRD)))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
 					},
 				},
 				opts: []ReconcilerOption{
@@ -556,12 +567,16 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
-		"ApplyCustomResourceDefinitionError": {
-			reason: "We should return any error we encounter while applying our CRD.",
+		"ApplyCustomResourceDefinitionTransientError": {
+			reason: "We should return a transient error from applying our CRD for retry without reporting it in the Synced condition.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
+							t.Errorf("a transient error should not be written to the status")
+							return nil
+						}),
 					},
 					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 						return errBoom
@@ -578,6 +593,39 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApplyCRD),
+			},
+		},
+		"ApplyCustomResourceDefinitionRejected": {
+			reason: "We should report a rejected CRD, such as an invalid schema, in the Synced condition.",
+			args: args{
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.Status.SetConditions(xpv2.ReconcileError(errors.Wrap(errInvalid, errApplyCRD)))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return errInvalid
+					}),
+				},
+				opts: []ReconcilerOption{
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errInvalid, errApplyCRD),
 			},
 		},
 		"CustomResourceDefinitionIsNotEstablished": {
@@ -766,7 +814,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v1.CompositeResourceDefinition{}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(v1.WatchingComposite(), xpv2.ReconcileSuccess())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -825,7 +873,7 @@ func TestReconcile(t *testing.T) {
 								{Name: "new", Referenceable: true},
 							}
 							want.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "new"}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(v1.WatchingComposite(), xpv2.ReconcileSuccess())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -872,7 +920,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v1.CompositeResourceDefinition{}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(v1.WatchingComposite(), xpv2.ReconcileSuccess())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
