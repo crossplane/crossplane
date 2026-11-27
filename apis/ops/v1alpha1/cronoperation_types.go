@@ -27,9 +27,19 @@ import (
 const LabelCronOperationName = "ops.crossplane.io/cronoperation"
 
 // CronOperationSpec specifies the desired state of a CronOperation.
+// +kubebuilder:validation:XValidation:rule="!has(self.timeZone) || !self.schedule.contains('TZ')",message="cannot use both timeZone and a TZ or CRON_TZ prefix in schedule"
 type CronOperationSpec struct {
 	// Schedule is the cron schedule for the operation.
 	Schedule string `json:"schedule"`
+
+	// TimeZone is the name of the IANA time zone the schedule is evaluated
+	// in, for example Europe/Berlin. When unset the schedule is evaluated in
+	// the time zone of the Crossplane pod, which is usually UTC. The schedule
+	// must not carry a TZ or CRON_TZ prefix when a time zone is set.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:XValidation:rule="self.lowerAscii() != 'local'",message="timeZone must be an explicit IANA time zone"
+	TimeZone *string `json:"timeZone,omitempty"`
 
 	// StartingDeadlineSeconds is the deadline in seconds for starting the
 	// operation if it misses its scheduled time for any reason.
