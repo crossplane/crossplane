@@ -409,6 +409,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		})
 	}
 
+	// Only one revision may be active: the current one, or under the manual
+	// policy the newest one the user activated.
+	manual := p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1.ManualActivation
+	keep := p.GetCurrentRevision()
+	newestActive := int64(0)
+
 	// Check to see if revision already exists.
 	for _, rev := range revisions {
 		// Set max revision to the highest numbered existing revision.
@@ -419,19 +425,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if rev.GetName() == p.GetCurrentRevision() {
 			pr = rev
 		}
+
+		if manual && rev.GetDesiredState() == v1.PackageRevisionActive && rev.GetRevision() > newestActive {
+			keep, newestActive = rev.GetName(), rev.GetRevision()
+		}
 	}
 
-	// Under the manual policy only the user activates revisions. Until they
-	// activate the current revision, leave the others running as they are.
-	manual := p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1.ManualActivation
-	deactivate := !manual || pr.GetDesiredState() == v1.PackageRevisionActive
-
 	for index, rev := range revisions {
-		if rev.GetName() == p.GetCurrentRevision() {
-			continue
-		}
-
-		if deactivate && rev.GetDesiredState() == v1.PackageRevisionActive {
+		if rev.GetName() != keep && rev.GetDesiredState() == v1.PackageRevisionActive {
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 
 			if err := r.kube.Applicator.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
@@ -447,7 +448,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// Never garbage collect a revision that may still be running.
-		if rev.GetDesiredState() != v1.PackageRevisionActive && rev.GetRevision() < oldestRevision {
+		if rev.GetName() != p.GetCurrentRevision() && rev.GetDesiredState() != v1.PackageRevisionActive && rev.GetRevision() < oldestRevision {
 			oldestRevision = rev.GetRevision()
 			oldestRevisionIndex = index
 		}
@@ -548,16 +549,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		var active []string
-		for _, rev := range revisions {
-			if rev.GetDesiredState() == v1.PackageRevisionActive {
-				active = append(active, rev.GetName())
-			}
-		}
-
 		msg := "Package is inactive"
-		if len(active) > 0 {
-			msg = "Current revision is inactive; active revisions: " + strings.Join(active, ", ")
+		if keep != p.GetCurrentRevision() {
+			msg = "Current revision is inactive; revision " + keep + " is active"
 		}
 
 		status.MarkConditions(v1.Inactive().WithMessage(msg))

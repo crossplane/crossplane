@@ -1073,7 +1073,7 @@ func TestReconcileActivationPolicy(t *testing.T) {
 			},
 			want: want{
 				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
-				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: old"),
+				installed: v1.Inactive().WithMessage("Current revision is inactive; revision old is active"),
 			},
 		},
 		"ManualActivatedCurrentRevisionDeactivatesOthers": {
@@ -1104,7 +1104,26 @@ func TestReconcileActivationPolicy(t *testing.T) {
 			},
 			want: want{
 				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
-				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: old"),
+				installed: v1.Inactive().WithMessage("Current revision is inactive; revision old is active"),
+			},
+		},
+		"ManualActivatedPendingRevisionDeactivatesOlder": {
+			reason: "Activating a pending revision that isn't current should deactivate the older active revision and leave the current one inactive.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs: []v1.ConfigurationRevision{
+					rev("running", 1, v1.PackageRevisionActive),
+					rev("pending", 2, v1.PackageRevisionActive),
+					rev(current, 3, v1.PackageRevisionInactive),
+				},
+			},
+			want: want{
+				applied: map[string]v1.PackageRevisionDesiredState{
+					"running": v1.PackageRevisionInactive,
+					current:   v1.PackageRevisionInactive,
+				},
+				deleted:   []string{"running"},
+				installed: v1.Inactive().WithMessage("Current revision is inactive; revision pending is active"),
 			},
 		},
 		"ManualActiveRevisionIsNotGarbageCollected": {
@@ -1120,7 +1139,7 @@ func TestReconcileActivationPolicy(t *testing.T) {
 			want: want{
 				applied:   map[string]v1.PackageRevisionDesiredState{current: v1.PackageRevisionInactive},
 				deleted:   []string{"candidate"},
-				installed: v1.Inactive().WithMessage("Current revision is inactive; active revisions: running"),
+				installed: v1.Inactive().WithMessage("Current revision is inactive; revision running is active"),
 			},
 		},
 	}
