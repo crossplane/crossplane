@@ -717,6 +717,45 @@ func TestImageConfigRuntimeConfig(t *testing.T) {
 	)
 }
 
+func TestImageConfigPackageName(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/package-name"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a package installed as a dependency is named using the packageName of a matching ImageConfig.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "image-config.yaml"),
+			)).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ProviderDependencyIsNamedFromImageConfig",
+				funcs.ResourcesCreatedWithin(3*time.Minute, manifests, "provider-dependency.yaml")).
+			Assess("ProviderDependencyIsHealthy",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-dependency.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "provider-dependency.yaml"),
+				// Ensure the CRD installed by provider-nop is also gone.
+				funcs.ResourceDeletedWithin(3*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "image-config.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "image-config.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 func TestExternallyManagedServiceAccount(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/externally-managed-service-account"
 	environment.Test(t,
