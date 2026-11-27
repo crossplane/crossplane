@@ -410,10 +410,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Only one revision may be active: the current one, or under the manual
-	// policy the newest one the user activated.
+	// policy while the current one is inactive, the newest one the user activated.
 	manual := p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1.ManualActivation
 	keep := p.GetCurrentRevision()
-	newestActive := int64(0)
+	var newestActive v1.PackageRevision
 
 	// Check to see if revision already exists.
 	for _, rev := range revisions {
@@ -426,9 +426,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			pr = rev
 		}
 
-		if manual && rev.GetDesiredState() == v1.PackageRevisionActive && rev.GetRevision() > newestActive {
-			keep, newestActive = rev.GetName(), rev.GetRevision()
+		if rev.GetDesiredState() == v1.PackageRevisionActive && (newestActive == nil || rev.GetRevision() > newestActive.GetRevision()) {
+			newestActive = rev
 		}
+	}
+
+	if manual && pr.GetDesiredState() != v1.PackageRevisionActive && newestActive != nil {
+		keep = newestActive.GetName()
 	}
 
 	for index, rev := range revisions {

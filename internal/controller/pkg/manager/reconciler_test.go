@@ -1126,6 +1126,23 @@ func TestReconcileActivationPolicy(t *testing.T) {
 				installed: v1.Inactive().WithMessage("Current revision is inactive; revision pending is active"),
 			},
 		},
+		"ManualActivatedCurrentRevisionWinsOverNewer": {
+			reason: "An active current revision should win over a higher-numbered active revision, e.g. after a mutable tag returns to an earlier digest.",
+			args: args{
+				policy: v1.ManualActivation,
+				revs: []v1.ConfigurationRevision{
+					rev(current, 1, v1.PackageRevisionActive),
+					rev("newer", 2, v1.PackageRevisionActive),
+				},
+			},
+			want: want{
+				applied: map[string]v1.PackageRevisionDesiredState{
+					"newer": v1.PackageRevisionInactive,
+					current: v1.PackageRevisionActive,
+				},
+				installed: v1.Active(),
+			},
+		},
 		"ManualActiveRevisionIsNotGarbageCollected": {
 			reason: "Garbage collection should delete the oldest inactive revision, not the active one.",
 			args: args{
