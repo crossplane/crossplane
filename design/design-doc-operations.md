@@ -206,7 +206,7 @@ message RunFunctionRequest {
 Renaming a protobuf message field isn't a breaking change, so older function
 SDKs that use e.g. `GetExtraResources()` will continue to work.
 
-An operation function can instruct Crossplane to create or update[^1] arbitary
+An operation function can instruct Crossplane to create or update[^1] arbitrary
 resources by including server-side apply [fully-specified intent][8] (FSI)
 patches in `rsp.desired.resources`, just like a composition function.
 
