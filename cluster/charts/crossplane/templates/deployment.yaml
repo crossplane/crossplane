@@ -117,7 +117,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: "WEBHOOK_SERVICE_PORT"
-            value: "9443"
+            value: "{{ .Values.webhooks.port | default 9443 }}"
           {{- if not (has .Values.webhooks.usage.failurePolicy (list "Fail" "Ignore")) }}
           {{- fail "webhooks.usage.failurePolicy must be one of Fail or Ignore" }}
           {{- end }}
