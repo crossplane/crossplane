@@ -19,7 +19,7 @@ spec:
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
-  {{- if .Values.rbacManager.revisionHistoryLimit }}
+  {{- if not (kindIs "invalid" .Values.rbacManager.revisionHistoryLimit) }}
   revisionHistoryLimit: {{ .Values.rbacManager.revisionHistoryLimit }}
   {{- end }}
   template:

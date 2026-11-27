@@ -18,7 +18,7 @@ spec:
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
-  {{- if .Values.revisionHistoryLimit }}
+  {{- if not (kindIs "invalid" .Values.revisionHistoryLimit) }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   {{- end }}
   template:
